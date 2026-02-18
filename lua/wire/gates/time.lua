@@ -341,5 +341,20 @@ GateActions["servertime"] = {
     end
 }
 
+GateActions["frametime"] = {
+	name = "Frame Time",
+	description = "Returns the CurTime-based time in seconds it took to render the last frame.",
+	inputs = {},
+	outputs = { "Out" },
+	outputtypes = { "NORMAL" },
+	timed = true,
+	output = function(gate)
+		return FrameTime()
+	end,
+	label = function(Out)
+		return string.format("Frame Time = %f", Out.Out)
+	end
+}
+
 
 GateActions()
