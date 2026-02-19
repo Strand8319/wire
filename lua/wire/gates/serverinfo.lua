@@ -2,7 +2,6 @@
 		Server Info
 ]]
 
-local sv_hostip   = game.GetIPAddress()
 local sv_map      = game.GetMap()
 local sv_maxplayers = game.MaxPlayers()
 
@@ -27,7 +26,7 @@ GateActions["sv_hostip"] = {
     inputs = {},
     outputtypes = { "STRING" },
     output = function(gate)
-        return sv_hostip
+        return game.GetIPAddress()
     end,
     label = function(Out)
         return string.format("hostip = %q", Out)
