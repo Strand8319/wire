@@ -4,6 +4,27 @@
 
 GateActions("Find")
 
+local forbidden_classes = {
+    ["info_player_allies"]          = true,
+    ["info_player_axis"]            = true,
+    ["info_player_combine"]         = true,
+    ["info_player_counterterrorist"]= true,
+    ["info_player_deathmatch"]      = true,
+    ["info_player_logo"]            = true,
+    ["info_player_rebel"]           = true,
+    ["info_player_start"]           = true,
+    ["info_player_terrorist"]       = true,
+    ["info_player_blu"]             = true,
+    ["info_player_red"]             = true,
+    ["prop_dynamic"]                = true,
+    ["physgun_beam"]                = true,
+    ["player_manager"]              = true,
+    ["predicted_viewmodel"]         = true,
+    ["gmod_ghost"]                  = true,
+}
+
+local FIND_RATE = 1 -- seconds between allowed searches
+
 local function safeClassMatch(class, filter)
     if filter == "" then return true end
     local ok, result = pcall(string.match, string.lower(class), string.lower(filter))
@@ -12,7 +33,7 @@ end
 
 GateActions["find_incone"] = {
     name = "Find In Cone",
-    description = "Finds all entities within a spherical cone. Returns an array of entities. Filter accepts a Lua pattern for class name. Ignore is an array of entities to exclude.",
+    description = "Finds all entities within a spherical cone. Returns an array of entities. Filter accepts a Lua pattern for class name. Ignore is an array of entities to exclude. Updates at most once per second.",
     inputs = { "Clk", "Position", "Direction", "Length", "Degrees", "Filter", "Ignore" },
     inputtypes = { "NORMAL", "VECTOR", "VECTOR", "NORMAL", "NORMAL", "STRING", "ARRAY" },
     outputs = { "Entities", "Count" },
@@ -23,11 +44,18 @@ GateActions["find_incone"] = {
             return gate.Outputs.Entities.Value, gate.Outputs.Count.Value
         end
 
-        if not isvector(Position)       then Position = Vector(0, 0, 0) end
-        if not isvector(Direction)      then Direction = Vector(0, 0, 1) end
-        if not Length  or Length  <= 0  then Length    = 1024 end
-        if not Degrees or Degrees <= 0  then Degrees   = 45 end
-        if not isstring(Filter)         then Filter    = "" end
+        -- rate limit: no more than once per second
+        local now = CurTime()
+        if gate._findNextTime and now < gate._findNextTime then
+            return gate.Outputs.Entities.Value, gate.Outputs.Count.Value
+        end
+        gate._findNextTime = now + FIND_RATE
+
+        if not isvector(Position)      then Position   = Vector(0, 0, 0) end
+        if not isvector(Direction)     then Direction  = Vector(0, 0, 1) end
+        if not Length  or Length  <= 0 then Length     = 1024 end
+        if not Degrees or Degrees <= 0 then Degrees    = 45 end
+        if not isstring(Filter)        then Filter     = "" end
 
         Direction = Direction:GetNormalized()
 
@@ -43,7 +71,7 @@ GateActions["find_incone"] = {
         local result     = {}
 
         for _, ent in ipairs(findlist) do
-            if IsValid(ent) and not ignoreLookup[ent] then
+            if IsValid(ent) and not ignoreLookup[ent] and not forbidden_classes[ent:GetClass()] then
                 local dot = Direction:Dot((ent:GetPos() - Position):GetNormalized())
                 if dot > cosDegrees then
                     if safeClassMatch(ent:GetClass(), Filter) then
@@ -63,7 +91,7 @@ GateActions["find_incone"] = {
 
 GateActions["find_inbox"] = {
     name = "Find In Box",
-    description = "Finds all entities within an axis-aligned box. Returns an array of entities. Filter accepts a Lua pattern for class name. Ignore is an array of entities to exclude.",
+    description = "Finds all entities within an axis-aligned box. Returns an array of entities. Filter accepts a Lua pattern for class name. Ignore is an array of entities to exclude. Updates at most once per second.",
     inputs = { "Clk", "Min", "Max", "Filter", "Ignore" },
     inputtypes = { "NORMAL", "VECTOR", "VECTOR", "STRING", "ARRAY" },
     outputs = { "Entities", "Count" },
@@ -73,6 +101,13 @@ GateActions["find_inbox"] = {
         if Clk == 0 then
             return gate.Outputs.Entities.Value, gate.Outputs.Count.Value
         end
+
+        -- rate limit: no more than once per second
+        local now = CurTime()
+        if gate._findNextTime and now < gate._findNextTime then
+            return gate.Outputs.Entities.Value, gate.Outputs.Count.Value
+        end
+        gate._findNextTime = now + FIND_RATE
 
         if not isvector(Min)    then Min    = Vector(0, 0, 0) end
         if not isvector(Max)    then Max    = Vector(0, 0, 0) end
@@ -92,7 +127,7 @@ GateActions["find_inbox"] = {
         local result   = {}
 
         for _, ent in ipairs(findlist) do
-            if IsValid(ent) and not ignoreLookup[ent] then
+            if IsValid(ent) and not ignoreLookup[ent] and not forbidden_classes[ent:GetClass()] then
                 if safeClassMatch(ent:GetClass(), Filter) then
                     result[#result + 1] = ent
                 end
@@ -102,7 +137,7 @@ GateActions["find_inbox"] = {
         return result, #result
     end,
     label = function(Out, Clk, Min, Max, Filter)
-        return string.format("findInBox(%s → %s, filter=%q) = %d",
+        return string.format("findInBox(%s -> %s, filter=%q) = %d",
             tostring(Min), tostring(Max), tostring(Filter), Out.Count)
     end
 }
