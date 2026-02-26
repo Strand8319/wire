@@ -1171,17 +1171,17 @@ local moveTypes = {
 
 GateActions["entity_getmovetype"] = {
     name = "Move Type",
-    description = "Returns the move type of an entity. 0=NONE, 1=ISOMETRIC, 2=WALK, 3=STEP, 4=FLY, 5=FLYGRAVITY, 6=VPHYSICS, 7=PUSH, 8=NOCLIP, 9=LADDER, 10=OBSERVER, 11=CUSTOM",
+    description = "Returns the move type of an entity.",
     inputs = { "Ent" },
     inputtypes = { "ENTITY" },
-    outputtypes = { "NORMAL" },
+    outputtypes = { "STRING" },
     timed = true,
     output = function(gate, Ent)
-        if not IsValid(Ent) then return 0 end
-        return Ent:GetMoveType()
+        if not IsValid(Ent) then return moveTypes[0] end
+        return moveTypes[Ent:GetMoveType()]
     end,
     label = function(Out, Ent)
-        return string.format("getMoveType(%s) = %s", tostring(Ent), moveTypes[Out] or tostring(Out))
+        return string.format("getMoveType(%s) = %s", tostring(Ent), Out or "")
     end
 }
 
