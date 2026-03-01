@@ -692,6 +692,21 @@ function Editor:DrawCircle(x, y, radius, segments)
 	surface.DrawPoly(circle)
 end
 
+function getInputAmountForNode(node)
+	local gate = getGate(node)
+	local amountOfInputs = 0
+	if gate.compact_inputs then
+		inputLimit = gate.compact_inputs
+		for inputIdx, _ in pairs(node.connections) do
+			inputLimit = math.max(inputLimit, inputIdx + 1)
+		end
+		amountOfInputs = math.min(#gate.inputs, inputLimit)
+	else
+		amountOfInputs = #gate.inputs
+	end
+	return amountOfInputs
+end
+
 --------------------------------------------------------
 --UNDO/REDO SYSTEM
 --------------------------------------------------------
@@ -842,7 +857,7 @@ function Editor:GetNodeAt(x, y)
 			--gates
 			local amountOfInputs = 0
 			if gate.inputs then
-				amountOfInputs = #gate.inputs
+				amountOfInputs = getInputAmountForNode(node)
 			end
 			local amountOfOutputs = 1
 			if gate.outputs then
@@ -898,12 +913,14 @@ function Editor:GetNodeInputAt(x, y)
 
 		if not gate then continue end
 
+		local amountOfInputs = getInputAmountForNode(node)
+
 		if gx < node.x - self.GateSize / 2 - self.IOSize then continue end
 		if gx > node.x + self.GateSize / 2 + self.IOSize then continue end
 		if gy < node.y - self.GateSize / 2 then continue end
-		if gy > node.y - self.GateSize / 2 + self.GateSize * #gate.inputs then continue end
+		if gy > node.y - self.GateSize / 2 + self.GateSize * amountOfInputs then continue end
 
-		for inputNum, _ in pairs(gate.inputs) do
+		for inputNum = 1, amountOfInputs do
 			local ix, iy = self:NodeInputPos(node, inputNum)
 
 			if gx < ix - self.IOSize / 2 then continue end
@@ -1187,7 +1204,7 @@ end
 function Editor:PaintGate(nodeId, node, gate)
 	local amountOfInputs = 0
 	if gate.inputs then
-		amountOfInputs = #gate.inputs
+		amountOfInputs = getInputAmountForNode(node)
 	end
 	local amountOfOutputs = 1
 	if gate.outputs then
@@ -1210,6 +1227,7 @@ function Editor:PaintGate(nodeId, node, gate)
 
 	if gate.inputs then
 		for inputNum, inputName in pairs(gate.inputs) do
+			if inputNum > amountOfInputs then break end
 			local nx = x - size / 2 - ioSize
 			local ny = y - ioSize / 2 + (inputNum-1) * size
 
@@ -1758,9 +1776,11 @@ function Editor:Paint()
 		if self.DrawingConnectionAll then
 			drawingConnectionFrom = {}
 			local ports
+			local amountOfInputs = getInputAmountForNode(node)
 			if self.DrawingFromInput then ports = gate.inputs
 			elseif self.DrawingFromOutput then ports = gate.outputs or { "Out" } end
 			for portNum, portName in pairs(ports) do
+				if self.DrawingFromInput and portNum > amountOfInputs then break end
 				drawingConnectionFrom[portNum] = portNum
 			end
 		end
@@ -2475,9 +2495,11 @@ function Editor:OnDrawConnectionFinished(x, y)
 	if self.DrawingConnectionAll then
 		drawingConnectionFrom = {}
 		local ports
+		local amountOfInputs = getInputAmountForNode(fromNode)
 		if self.DrawingFromInput then ports = fromGate.inputs
 		elseif self.DrawingFromOutput then ports = fromGate.outputs or { "Out" } end
 		for portNum, _ in pairs(ports) do
+			if self.DrawingFromInput and portNum > amountOfInputs then break end
 			drawingConnectionFrom[portNum] = portNum
 		end
 	end
